@@ -1,0 +1,226 @@
+<html>
+<head>
+  <meta name="format-detection" content="telephone=no">
+  <meta name="msapplication-tap-highlight" content="no">
+  <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+  <title>Badminton</title>
+
+  <link rel="stylesheet" href="style.css">
+  <script src="jquery-3.2.0.js"></script>
+  <script src="lodash.js"></script>
+  <script src="Player.js"></script>
+  <script src="Court.js"></script>
+  <script>
+  var courts = [];
+
+  var loadPlayers = localStorage.getItem('players');
+  if (loadPlayers) {
+    var p = [];
+    try {
+      p = JSON.parse(loadPlayers);
+    } catch (e) {
+      p = [];
+      localStorage.setItem( 'players', '[]' );
+    }
+
+    for (var i in p) {
+      $Players.push( makePlayerFromJson(p[i]) );
+    }
+  }
+
+  var tabHidden = true;
+  var tabHiddenTop = 0;
+
+  function removePlayer(i) {
+    $Players.splice(i, 1);
+    refreshPlayersList();
+    return false;
+  }
+  function pausePlayer(i) {
+    $Players[i].paused = !$Players[i].paused;
+    refreshPlayersList();
+    return false;
+  }
+
+  function refreshPlayersList() {
+    $('#player-table tbody').html('');
+    localStorage.setItem( 'players', JSON.stringify($Players) );
+    for (var i in $Players) {
+      var p = $Players[i];
+      var status = p.paused ? '(paused)' : (p.benched ? '(bench)' : '(in game)');
+	  var deleteButton = '<img class="button small-button" onclick="return removePlayer('+i+')" src="personminus.png">';
+	  var pauseButton = '<img class="button small-button" onclick="return pausePlayer('+i+')" src="'+(p.paused ? 'play' : 'pause')+'.png">';
+      var row = $('<tr>')
+        .append($('<td>'+pauseButton+'&nbsp;&nbsp;'+deleteButton+'</td>'))
+        .append($('<td>'+p.name+' '+status+'</td>'))
+        .append($('<td>'+p.getArrivalTime()+'</td>'))
+        .append($('<td>'+p.singles+' ('+p.pseudoSingles+')'+'</td>'))
+        .append($('<td>'+p.doubles+' ('+p.pseudoDoubles+')'+'</td>'))
+        .append($('<td>'+p.gamesPlayed()+'</td>'));
+      $('#player-table tbody').append(row);
+    }
+  }
+
+  $(function() {
+    refreshPlayersList();
+    tabHiddenTop = $('#tab').css('top');
+    $('#gen-all').click(function(e) {
+      // Generate as many matches as we can!
+      var benched = getAvailablePlayers();
+      var numDoubles = 0;
+      var numSingles = 0;
+      if (benched.length >= 8) {
+        numDoubles = 2;
+      } else if (benched.length >= 6) {
+        numDoubles = 1;
+        numSingles = 1;
+      } else if (benched.length >= 4) {
+        numDoubles = 1;
+      } else if (benched.length >= 2) {
+        numSingles = 1;
+      }
+      // Generate the matches chosen.
+      var players = getPlayers(numDoubles * 4 + numSingles * 2);
+      for (var i = 0; i < numSingles; i++) {
+        var p = getPlayers(2, players);
+        // Find a free court
+        for (var c in courts) {
+          if (courts[c].players.length == 0) {
+            courts[c].generateWithPlayers(p);
+            // Remove from players array
+            for (var j in p) {
+              for (var k = players.length - 1; k >= 0; k--) {
+                if (p[j] == players[k]) { players.splice(k, 1); }
+              }
+            }
+            break;
+          }
+        }
+      }
+      for (var i = 0; i < numDoubles; i++) {
+        var p = getPlayers(4, players);
+        // Find a free court
+        for (var c in courts) {
+          if (courts[c].players.length == 0) {
+            courts[c].generateWithPlayers(p);
+            // Remove from players array
+            for (var j in p) {
+              for (var k = players.length - 1; k >= 0; k--) {
+                if (p[j] == players[k]) { players.splice(k, 1); }
+              }
+            }
+            break;
+          }
+        }
+      }
+    });
+    $('#tab-pull').click(function(e) {
+      tabHidden = !tabHidden;
+      if(tabHidden) {
+        $('#tab').animate({'top': tabHiddenTop}, 100);
+      } else {
+        $('#tab').animate({'top': '0'}, 100);
+      }
+      return false;
+    });
+
+    $('#btn-new-player').click(function() {
+      //
+      var name = $('#new-player-name').val();
+      var player = new Player(name);
+      $Players.push(player);
+      $('#new-player-name').val('');
+      refreshPlayersList();
+    });
+
+    courts.push( new Court('court1') );
+    courts.push( new Court('court2') );
+    courts.push( new Court('court3') );
+    courts.push( new Court('court4') );
+  });
+  </script>
+</head>
+<body>
+  <div id="gen-all">
+  </div>
+  <div id="tab">
+    <div id="tab-content">
+      <!--List of players:
+      <ul>
+        <li>Add player (add player to bench)</li>
+        <li>Remove player (don't add them back into pool once current game is over)</li>
+        <li>See players + games played (in singles and doubles)</li>
+        <li>See who is benched and who is not</li>
+      </ul>
+      Generate:
+      <ul>
+        <li>Bench players on given court</li>
+        <li>Pick n players with the fewest games played and put them on the court</li>
+        <li>30 second buffer - if you generate again quickly, don't count it as a game played</li>
+      </ul>-->
+      <div id="new-player-holder">
+        <input type="text" id="new-player-name">
+        <img class="button" id="btn-new-player" src="personadd.png">
+      </div>
+      <table id="player-table">
+        <thead>
+          <tr>
+            <th style="width: 1%">&nbsp;</th>
+            <th>Player</th>
+			<th>Arrived</th>
+            <th>Singles</th>
+            <th>Doubles</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+    <div id="tab-pull">
+    </div>
+  </div>
+  <div id="court-holder-holder"><!--
+  --><div id="court-holder"><!--
+  --><div class="court" id="court1">
+        <div class="q q1"></div>
+        <div class="q q2"></div>
+        <div class="q q3"></div>
+        <div class="q q4"></div>
+		<div class="h h1"><p>GENERATE DOUBLES</p></div>
+		<div class="h h2"><p>GENERATE SINGLES</p></div>
+      </div><!--
+      --><div class="court" id="court2">
+        <div class="q q1"></div>
+        <div class="q q2"></div>
+        <div class="q q3"></div>
+        <div class="q q4"></div>
+		<div class="h h1"><p>GENERATE DOUBLES</p></div>
+		<div class="h h2"><p>GENERATE SINGLES</p></div>
+      </div><!--
+    --></div><!--
+  --></div>
+  <div id="court-holder-holder"><!--
+  --><div id="court-holder"><!--
+  --><div class="court" id="court3">
+        <div class="q q1"></div>
+        <div class="q q2"></div>
+        <div class="q q3"></div>
+        <div class="q q4"></div>
+		<div class="h h1"><p>GENERATE DOUBLES</p></div>
+		<div class="h h2"><p>GENERATE SINGLES</p></div>
+      </div><!--
+      --><div class="court" id="court4">
+        <div class="q q1"></div>
+        <div class="q q2"></div>
+        <div class="q q3"></div>
+        <div class="q q4"></div>
+		<div class="h h1"><p>GENERATE DOUBLES</p></div>
+		<div class="h h2"><p>GENERATE SINGLES</p></div>
+      </div><!--
+    --></div><!--
+  --></div>
+  <!-- <script type="text/javascript" src="cordova.js"></script> -->
+  <script type="text/javascript" src="js/index.js"></script>
+</body>
+</html>

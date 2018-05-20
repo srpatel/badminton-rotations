@@ -1,0 +1,135 @@
+<html>
+<head>
+  <meta name="format-detection" content="telephone=no">
+  <meta name="msapplication-tap-highlight" content="no">
+  <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+  <title>Badminton</title>
+
+  <link rel="stylesheet" href="style.css">
+  <script src="jquery-3.2.0.js"></script>
+  <script src="lodash.js"></script>
+  <script src="Player.js"></script>
+  <script src="Court.js"></script>
+  <script>
+  var courts = [];
+
+  var loadPlayers = localStorage.getItem('players');
+  if (loadPlayers) {
+    var p = JSON.parse(loadPlayers);
+    for (var i in p) {
+      $Players.push( makePlayerFromJson(p[i]) );
+    }
+  }
+
+  var tabHidden = true;
+  var tabHiddenTop = 0;
+
+  function removePlayer(i) {
+    $Players.splice(i, 1);
+    refreshPlayersList();
+    return false;
+  }
+
+  function refreshPlayersList() {
+    $('#player-table tbody').html('');
+    localStorage.setItem( 'players', JSON.stringify($Players) );
+    for (var i in $Players) {
+      var p = $Players[i];
+      var status = p.benched ? '(bench)' : '(in game)';
+      var row = $('<tr>')
+        .append($('<td><img class="button small-button" onclick="return removePlayer('+i+')" src="personminus.png"></td>'))
+        .append($('<td>'+p.name+' '+status+'</td>'))
+        .append($('<td>'+p.pseudo+'</td>'))
+        .append($('<td>'+p.singles+'</td>'))
+        .append($('<td>'+p.doubles+'</td>'))
+        .append($('<td>'+p.gamesPlayed()+'</td>'));
+      $('#player-table tbody').append(row);
+    }
+  }
+
+  $(function() {
+    refreshPlayersList();
+    tabHiddenTop = $('#tab').css('top');
+    $('#tab-pull').click(function(e) {
+      tabHidden = !tabHidden;
+      if(tabHidden) {
+        $('#tab').animate({'top': tabHiddenTop}, 100);
+      } else {
+        $('#tab').animate({'top': '0'}, 100);
+      }
+      return false;
+    });
+
+    $('#btn-new-player').click(function() {
+      //
+      var name = $('#new-player-name').val();
+      var player = new Player(name);
+      $Players.push(player);
+      $('#new-player-name').val('');
+      refreshPlayersList();
+    });
+
+    courts.push( new Court('court1') );
+    courts.push( new Court('court2') );
+  });
+  </script>
+</head>
+<body>
+  <div id="tab">
+    <div id="tab-content">
+      <!--List of players:
+      <ul>
+        <li>Add player (add player to bench)</li>
+        <li>Remove player (don't add them back into pool once current game is over)</li>
+        <li>See players + games played (in singles and doubles)</li>
+        <li>See who is benched and who is not</li>
+      </ul>
+      Generate:
+      <ul>
+        <li>Bench players on given court</li>
+        <li>Pick n players with the fewest games played and put them on the court</li>
+        <li>30 second buffer -- if you generate again quickly, don't count it as a game played</li>
+        <li>30 second buffer -- if you generate again quickly, don't count it as a game played</li>
+      </ul>-->
+      <div id="new-player-holder">
+        <input type="text" id="new-player-name">
+        <img class="button" id="btn-new-player" src="personadd.png">
+      </div>
+      <table id="player-table">
+        <thead>
+          <tr>
+            <th>&nbsp;</th>
+            <th>Player</th>
+            <th>Pseudo</th>
+            <th>Singles</th>
+            <th>Doubles</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+    <div id="tab-pull">
+    </div>
+  </div>
+  <div id="court-holder-holder"><!--
+  --><div id="court-holder"><!--
+  --><div class="court" id="court1">
+        <div class="q q1"></div>
+        <div class="q q2"></div>
+        <div class="q q3"></div>
+        <div class="q q4"></div>
+      </div><!--
+      --><div class="court" id="court2">
+        <div class="q q1"></div>
+        <div class="q q2"></div>
+        <div class="q q3"></div>
+        <div class="q q4"></div>
+      </div><!--
+    --></div><!--
+  --></div>
+  <script type="text/javascript" src="cordova.js"></script>
+  <script type="text/javascript" src="js/index.js"></script>
+</body>
+</html>
